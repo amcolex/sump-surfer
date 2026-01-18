@@ -411,7 +411,8 @@ module sump3_axi_wrapper #(
     //=========================================================================
     typedef enum logic [1:0] {
         AXI_WR_IDLE,  // Ready for new write
-        AXI_WR_DATA,  // Have address, waiting for data
+        AXI_WR_ADDR,  // Have data, waiting for address (W arrived before AW)
+        AXI_WR_DATA,  // Have address, waiting for data (AW arrived before W)
         AXI_WR_RESP   // Sending write response
     } axi_wr_state_t;
     
@@ -433,6 +434,7 @@ module sump3_axi_wrapper #(
             case (axi_wr_state)
                 AXI_WR_IDLE: begin
                     if (s_axi_awvalid && s_axi_wvalid) begin
+                        // Both address and data arrived together
                         axi_wr_addr_reg <= s_axi_awaddr;
                         axi_wr_data_reg <= s_axi_wdata;
                         axi_wr_pulse    <= 1'b1;
@@ -440,13 +442,30 @@ module sump3_axi_wrapper #(
                         s_axi_wready    <= 1'b0;
                         axi_wr_state    <= AXI_WR_RESP;
                     end else if (s_axi_awvalid) begin
+                        // Address arrived first
                         axi_wr_addr_reg <= s_axi_awaddr;
                         s_axi_awready   <= 1'b0;
                         axi_wr_state    <= AXI_WR_DATA;
+                    end else if (s_axi_wvalid) begin
+                        // Data arrived first (valid per AXI spec)
+                        axi_wr_data_reg <= s_axi_wdata;
+                        s_axi_wready    <= 1'b0;
+                        axi_wr_state    <= AXI_WR_ADDR;
+                    end
+                end
+                
+                AXI_WR_ADDR: begin
+                    // Have data, waiting for address
+                    if (s_axi_awvalid) begin
+                        axi_wr_addr_reg <= s_axi_awaddr;
+                        axi_wr_pulse    <= 1'b1;
+                        s_axi_awready   <= 1'b0;
+                        axi_wr_state    <= AXI_WR_RESP;
                     end
                 end
                 
                 AXI_WR_DATA: begin
+                    // Have address, waiting for data
                     if (s_axi_wvalid) begin
                         axi_wr_data_reg <= s_axi_wdata;
                         axi_wr_pulse    <= 1'b1;
