@@ -608,7 +608,8 @@ async fn post_configure_trigger(
     if state.exec_cmd(CMD_INIT, 0, 0).is_none() {
         return Json(CommandResult { success: false, message: "Init failed".into() });
     }
-    std::thread::sleep(std::time::Duration::from_millis(200));
+    // Small delay for INIT to complete (was 200ms, reduced to 10ms)
+    std::thread::sleep(std::time::Duration::from_millis(10));
     
     if state.exec_cmd(CMD_ARM, 0, 0).is_none() {
         return Json(CommandResult { success: false, message: "Arm failed".into() });

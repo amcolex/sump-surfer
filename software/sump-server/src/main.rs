@@ -17,6 +17,7 @@ mod ila;
 use axum::Router;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -84,11 +85,19 @@ async fn main() {
         }
     };
 
+    // CORS configuration for development (allows any origin)
+    // In production, the frontend is served from the same origin so CORS isn't needed
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     // Build the application router
     let app = Router::new()
         .nest("/api/ila", ila::ila_router(ila_state))
         // Static files (fallback to serve index.html, CSS, JS, etc.)
-        .fallback_service(ServeDir::new(STATIC_DIR));
+        .fallback_service(ServeDir::new(STATIC_DIR))
+        .layer(cors);
 
     // Parse port from environment or use compile-time default
     let port: u16 = std::env::var("PORT")

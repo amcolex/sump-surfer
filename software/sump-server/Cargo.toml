@@ -14,8 +14,8 @@ tokio = { version = "1", default-features = false, features = ["rt", "net", "mac
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Static file serving
-tower-http = { version = "0.5", features = ["fs"] }
+# Static file serving and CORS for development
+tower-http = { version = "0.5", features = ["fs", "cors"] }
 tower = "0.4"
 
 # Hardware access

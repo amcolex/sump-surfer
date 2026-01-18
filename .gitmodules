@@ -1,3 +1,6 @@
 [submodule "sump3"]
 	path = extern/sump3
 	url = git@github.com:blackmesalabs/sump3.git
+[submodule "surfer"]
+	path = surfer
+	url = git@github.com:amcolex/surfer-fork.git
