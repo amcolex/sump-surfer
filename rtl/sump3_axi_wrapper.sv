@@ -582,24 +582,25 @@ module sump3_axi_wrapper #(
             // Load wait time on state transition
             // Wait times are sized for slow capture domains (e.g., 50 MHz with 100 MHz bus)
             // Serial ops need: ~40 clk_lb + ~90 clk_cap each way
-            // For 2x slower clk_cap: 40 + 180 + 40 + 180 = 440 cycles minimum
+            // Wait times sized for worst-case clock ratios (e.g., 25 MHz clk_cap with 200 MHz bus = 8:1)
+            // Serial shift register is 39 bits = ~40 bus cycles
+            // CDC crossing: ~3 clk_cap cycles = ~24 bus cycles at 8:1 ratio
+            // Hub processing: ~3 clk_cap cycles = ~24 bus cycles at 8:1 ratio
+            // Total serial round-trip: ~40 + 24 + 24 + 4 + 40 = ~132 bus cycles (add 2x margin)
             if (state != state_next) begin
-                // Wait times sized for slow capture domains (e.g., 50 MHz with 100 MHz bus)
-                // Serial shift register is 39 bits; at 2:1 clock ratio = ~80 bus cycles
-                // Adding margin for CDC and processing time
                 case (state_next)
                     ST_SIMPLE_HOLD:         wait_counter <= 16'd8;    // CS hold time
                     ST_LOCAL_HOLD:          wait_counter <= 16'd8;    // CS hold time
                     ST_LOCAL_WAIT:          wait_counter <= 16'd20;   // Min before lb_rd_rdy check
                     ST_LOCAL_WR_HOLD:       wait_counter <= 16'd8;    // CS hold time
                     ST_LOCAL_WR_DATA_HOLD:  wait_counter <= 16'd8;    // CS hold time
-                    ST_INST_ADDR_HOLD:      wait_counter <= 16'd100;  // Wait for cmd to shift out
-                    ST_INST_ADDR_DATA_HOLD: wait_counter <= 16'd200;  // Wait for addr to shift to hub
-                    ST_TARGET_CMD_HOLD:     wait_counter <= 16'd100;  // Wait for cmd to shift out
+                    ST_INST_ADDR_HOLD:      wait_counter <= 16'd200;  // Wait for cmd to shift out + CDC settle
+                    ST_INST_ADDR_DATA_HOLD: wait_counter <= 16'd400;  // Wait for addr to shift + hub CDC + store
+                    ST_TARGET_CMD_HOLD:     wait_counter <= 16'd300;  // Wait for cmd + hub response (worst-case 8:1 ratio)
                     ST_TARGET_TRIGGER_HOLD: wait_counter <= 16'd20;   // Brief hold
-                    ST_TARGET_SERIAL_WAIT:  wait_counter <= 16'd600;  // Wait for serial round-trip
+                    ST_TARGET_SERIAL_WAIT:  wait_counter <= 16'd800;  // Wait for pod serial round-trip (worst-case)
                     ST_TARGET_READ_WAIT:    wait_counter <= 16'd20;   // Min before lb_rd_rdy check
-                    ST_TARGET_WRITE_HOLD:   wait_counter <= 16'd400;  // Wait for write to complete
+                    ST_TARGET_WRITE_HOLD:   wait_counter <= 16'd600;  // Wait for write to complete (worst-case)
                     default:                wait_counter <= 16'd0;
                 endcase
             end
