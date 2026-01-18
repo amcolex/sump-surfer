@@ -72,7 +72,7 @@ fn main() {
         let status = Command::new("trunk")
             .args(["build", "--release"])
             .current_dir(&surfer_dir)
-            .env("NO_COLOR", "1") // Disable color output for cleaner logs
+            .env_remove("NO_COLOR") // Remove NO_COLOR to avoid trunk argument parsing issues
             .status();
 
         match status {
