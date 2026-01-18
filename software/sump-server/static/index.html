@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUMP3 ILA</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+        
+        :root {
+            --bg-dark: #0d1117;
+            --bg-surface: #161b22;
+            --bg-elevated: #21262d;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-cyan: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-orange: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 24px;
+            background-image: 
+                radial-gradient(ellipse at top left, rgba(88, 166, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(163, 113, 247, 0.08) 0%, transparent 50%);
+        }
+        
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+        .logo { font-size: 32px; }
+        h1 {
+            font-size: 28px; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .subtitle { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+        .config-badge {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: var(--bg-elevated);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            font-size: 16px; font-weight: 600; color: var(--text-primary);
+            display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+        }
+        .card h2 .icon { font-size: 18px; }
+        
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .status-item {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        .status-item .label { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; }
+        .status-item .value { font-size: 16px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+        .status-item .value.connected { color: var(--accent-green); }
+        .status-item .value.disconnected { color: var(--accent-red); }
+        .status-item .value.armed { color: var(--accent-orange); }
+        .status-item .value.idle { color: var(--text-secondary); }
+        
+        .button-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+        button {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: var(--text-primary);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--border); }
+        button.primary { background: var(--accent-cyan); border-color: var(--accent-cyan); color: var(--bg-dark); }
+        button.primary:hover { background: #79b8ff; border-color: #79b8ff; }
+        button.success { background: var(--accent-green); border-color: var(--accent-green); color: var(--bg-dark); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 12px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label { font-size: 12px; color: var(--text-secondary); }
+        .form-group select, .form-group input {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+        .form-group select { min-width: 150px; }
+        .form-group input { width: 120px; }
+        
+        .pod-card {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .pod-card h3 {
+            font-size: 14px; font-weight: 600; color: var(--accent-cyan);
+            margin-bottom: 12px;
+        }
+        .pod-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+        .pod-info-item { font-size: 12px; }
+        .pod-info-item .key { color: var(--text-secondary); }
+        .pod-info-item .val { color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+        
+        #status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+        #status.success { background: rgba(63, 185, 80, 0.1); border-color: var(--accent-green); color: var(--accent-green); }
+        #status.error { background: rgba(248, 81, 73, 0.1); border-color: var(--accent-red); color: var(--accent-red); }
+        
+        .capture-info {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+        .capture-info .row { display: flex; gap: 24px; flex-wrap: wrap; }
+        .capture-info .item { color: var(--text-secondary); }
+        .capture-info .item span { color: var(--accent-cyan); }
+        
+        .sample-preview {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .info-box {
+            background: var(--bg-elevated);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .info-box code {
+            background: rgba(88, 166, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">&#128300;</div>
+            <div>
+                <h1>SUMP3 ILA</h1>
+                <div class="subtitle">Open Source Integrated Logic Analyzer</div>
+            </div>
+            <div class="config-badge" id="configBadge">Loading...</div>
+        </header>
+        
+        <div id="status">Loading...</div>
+        
+        <!-- Status Card -->
+        <div class="card">
+            <h2><span class="icon">&#128225;</span> ILA Status</h2>
+            <div class="status-panel">
+                <div class="status-item">
+                    <div class="label">Connection</div>
+                    <div class="value" id="connStatus">--</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">HW ID</div>
+                    <div class="value" id="hwId">--</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Hubs</div>
+                    <div class="value" id="hubCount">--</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Armed</div>
+                    <div class="value" id="armedStatus">--</div>
+                </div>
+            </div>
+            <div id="hubInfo"></div>
+            <div class="button-row">
+                <button class="primary" onclick="refreshStatus()">Refresh</button>
+            </div>
+        </div>
+        
+        <!-- Capture Card -->
+        <div class="card">
+            <h2><span class="icon">&#9889;</span> Capture &amp; Export</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Capture Source</label>
+                    <select id="captureSource">
+                        <option value="0:0">Hub 0 / Pod 0</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Trigger Type</label>
+                    <select id="trigType">
+                        <option value="or_rising">OR Rising Edge</option>
+                        <option value="or_falling">OR Falling Edge</option>
+                        <option value="external">External Trigger</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Trigger Bits (hex)</label>
+                    <input type="text" id="trigBits" value="00000001">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Post-Trigger</label>
+                    <input type="number" id="postTrig" value="64" min="1" max="512">
+                </div>
+                <div class="form-group">
+                    <label>Samples</label>
+                    <input type="number" id="sampleCount" value="256" min="8" max="2048">
+                </div>
+            </div>
+            <div class="button-row">
+                <button class="success" onclick="captureData()">Capture</button>
+                <button onclick="downloadVCD()" id="btnVCD" disabled>Download VCD</button>
+                <button onclick="downloadJSON()" id="btnJSON" disabled>Download JSON</button>
+            </div>
+            
+            <div id="captureResult" style="margin-top: 16px; display: none;">
+                <div class="capture-info">
+                    <div class="row">
+                        <div class="item">Source: <span id="capSource">--</span></div>
+                        <div class="item">Samples: <span id="capSamples">0</span></div>
+                        <div class="item">Time Span: <span id="capTimeSpan">0</span> clocks</div>
+                        <div class="item">Data Bits: <span id="capDataBits">32</span></div>
+                    </div>
+                </div>
+                <div class="sample-preview" id="samplePreview"></div>
+            </div>
+        </div>
+        
+        <!-- Info Card -->
+        <div class="info-box" id="infoBox">
+            <strong>SUMP3 ILA Server:</strong> Loading configuration...<br>
+            VCD export adapts to the selected hub's clock frequency and signal configuration.
+        </div>
+    </div>
+    
+    <script>
+        let capturedData = null;
+        let ilaInfo = null;
+        
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('status');
+            el.textContent = msg;
+            el.className = type;
+        }
+        
+        async function refreshStatus() {
+            try {
+                const r = await fetch('/api/ila');
+                ilaInfo = await r.json();
+                
+                // Update config badge
+                document.getElementById('configBadge').textContent = ilaInfo.base_addr || '0x43C20000';
+                
+                document.getElementById('connStatus').textContent = ilaInfo.connected ? 'Connected' : 'Disconnected';
+                document.getElementById('connStatus').className = 'value ' + (ilaInfo.connected ? 'connected' : 'disconnected');
+                document.getElementById('hwId').textContent = ilaInfo.hw_id + ' rev' + ilaInfo.revision;
+                document.getElementById('hubCount').textContent = ilaInfo.hub_count;
+                document.getElementById('armedStatus').textContent = ilaInfo.is_armed ? 'Armed' : 'Idle';
+                document.getElementById('armedStatus').className = 'value ' + (ilaInfo.is_armed ? 'armed' : 'idle');
+                
+                // Update capture source dropdown
+                const sourceSelect = document.getElementById('captureSource');
+                sourceSelect.innerHTML = '';
+                
+                // Show hub/pod info
+                let html = '';
+                let infoHtml = '';
+                if (ilaInfo.hubs && ilaInfo.hubs.length > 0) {
+                    for (const hub of ilaInfo.hubs) {
+                        html += `<div class="pod-card">`;
+                        html += `<h3>Hub ${hub.index}: ${hub.name.trim()} @ ${hub.freq_mhz} MHz</h3>`;
+                        if (hub.pods && hub.pods.length > 0) {
+                            for (const pod of hub.pods) {
+                                const opt = document.createElement('option');
+                                opt.value = `${hub.index}:${pod.index}`;
+                                opt.textContent = `Hub ${hub.index} / Pod ${pod.index} (${hub.name.trim()})`;
+                                sourceSelect.appendChild(opt);
+                                
+                                const modeLabel = pod.rle_disable ? 'Streaming' : 'RLE';
+                                html += `<div class="pod-info">`;
+                                html += `<div class="pod-info-item"><span class="key">Pod:</span> <span class="val">${pod.name.trim()}</span></div>`;
+                                html += `<div class="pod-info-item"><span class="key">RAM:</span> <span class="val">${pod.ram_depth} samples</span></div>`;
+                                html += `<div class="pod-info-item"><span class="key">Mode:</span> <span class="val">${modeLabel} (${pod.view_mode})</span></div>`;
+                                html += `<div class="pod-info-item"><span class="key">Width:</span> <span class="val">${pod.data_bits} bits</span></div>`;
+                                html += `</div>`;
+                                
+                                if (pod.signals && pod.signals.length > 0) {
+                                    html += `<div style="margin-top:8px;font-size:12px;color:var(--text-secondary)">Signals: `;
+                                    html += pod.signals.map(s => `<code>${s.name}</code>`).join(', ');
+                                    html += `</div>`;
+                                }
+                                
+                                infoHtml += `<code>Hub ${hub.index} (${hub.name.trim()} @ ${hub.freq_mhz} MHz)</code> - ${pod.name.trim()}`;
+                                if (pod.signals && pod.signals.length > 0) {
+                                    infoHtml += ` [${pod.signals[0].signal_type}]`;
+                                }
+                                infoHtml += `<br>`;
+                            }
+                        }
+                        html += `</div>`;
+                    }
+                }
+                document.getElementById('hubInfo').innerHTML = html;
+                
+                if (infoHtml) {
+                    document.getElementById('infoBox').innerHTML = 
+                        `<strong>SUMP3 ILA Server @ ${ilaInfo.base_addr}:</strong> ${ilaInfo.hub_count} capture domain(s):<br>` + 
+                        infoHtml + 
+                        `<br>VCD export adapts to the selected hub's clock frequency and signal configuration.`;
+                }
+                
+                setStatus('Updated at ' + new Date().toLocaleTimeString(), 'success');
+            } catch(e) {
+                setStatus('Error: ' + e.message, 'error');
+            }
+        }
+        
+        async function captureData() {
+            try {
+                const config = {
+                    trigger_type: document.getElementById('trigType').value,
+                    trigger_bits: parseInt(document.getElementById('trigBits').value, 16) || 1,
+                    post_trigger: parseInt(document.getElementById('postTrig').value) || 64
+                };
+                
+                setStatus('Configuring and arming...', '');
+                await fetch('/api/ila/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                
+                await new Promise(r => setTimeout(r, 200));
+                
+                const source = document.getElementById('captureSource').value.split(':');
+                const hub = parseInt(source[0]);
+                const pod = parseInt(source[1]);
+                const count = parseInt(document.getElementById('sampleCount').value) || 256;
+                
+                setStatus(`Downloading ${count} samples from Hub ${hub} / Pod ${pod}...`, '');
+                const resp = await fetch(`/api/ila/capture/${hub}/${pod}/${count}`);
+                capturedData = await resp.json();
+                
+                const timestamps = capturedData.samples.map(s => s.timestamp || 0);
+                const timeSpan = Math.max(...timestamps) - Math.min(...timestamps);
+                
+                let hubName = `Hub ${hub}`;
+                let freqMhz = 100;
+                if (ilaInfo && ilaInfo.hubs) {
+                    const hubInfo = ilaInfo.hubs.find(h => h.index === hub);
+                    if (hubInfo) {
+                        hubName = hubInfo.name.trim();
+                        freqMhz = hubInfo.freq_mhz;
+                    }
+                }
+                
+                document.getElementById('capSource').textContent = `${hubName} @ ${freqMhz} MHz`;
+                document.getElementById('capSamples').textContent = capturedData.samples.length;
+                document.getElementById('capTimeSpan').textContent = timeSpan;
+                document.getElementById('capDataBits').textContent = capturedData.data_bits;
+                
+                const codes = ['INV', 'PRE', 'TRIG', 'POST'];
+                let preview = '';
+                const maxShow = Math.min(10, capturedData.samples.length);
+                
+                let podInfo = null;
+                if (ilaInfo && ilaInfo.hubs) {
+                    const hubInfoFind = ilaInfo.hubs.find(h => h.index === hub);
+                    if (hubInfoFind && hubInfoFind.pods) {
+                        podInfo = hubInfoFind.pods.find(p => p.index === pod);
+                    }
+                }
+                
+                for (let i = 0; i < maxShow; i++) {
+                    const s = capturedData.samples[i];
+                    let dataStr;
+                    
+                    if (podInfo && podInfo.signals && podInfo.signals.length > 0) {
+                        const parts = podInfo.signals.map(sig => {
+                            const width = sig.bit_high - sig.bit_low + 1;
+                            const mask = ((1 << width) - 1);
+                            let val = (s.data >> sig.bit_low) & mask;
+                            
+                            if (sig.signal_type === 'analog' && width >= 12) {
+                                if (val >= (1 << (width - 1))) val -= (1 << width);
+                                return `${String(val).padStart(6)}`;
+                            } else if (width > 8) {
+                                return `0x${val.toString(16).padStart(Math.ceil(width/4), '0')}`;
+                            } else if (width === 1) {
+                                return `${val}`;
+                            } else {
+                                return `0x${val.toString(16).padStart(Math.ceil(width/4), '0')}`;
+                            }
+                        });
+                        dataStr = parts.join(' ');
+                    } else {
+                        dataStr = `0x${s.data.toString(16).padStart(8,'0')}`;
+                    }
+                    
+                    preview += `[${String(s.address).padStart(3)}] ${codes[s.code]} ts=${String(s.timestamp).padStart(5)} ${dataStr}\n`;
+                }
+                if (capturedData.samples.length > maxShow) {
+                    preview += `... (${capturedData.samples.length - maxShow} more samples)\n`;
+                }
+                document.getElementById('samplePreview').textContent = preview;
+                
+                document.getElementById('captureResult').style.display = 'block';
+                document.getElementById('btnVCD').disabled = false;
+                document.getElementById('btnJSON').disabled = false;
+                
+                setStatus(`Captured ${capturedData.samples.length} samples, ${timeSpan} clock cycles`, 'success');
+            } catch(e) {
+                setStatus('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function generateVCD() {
+            if (!capturedData || !capturedData.samples.length) return '';
+            
+            const samples = capturedData.samples;
+            const dataBits = capturedData.data_bits || 32;
+            
+            let freqMhz = 100;
+            let podInfo = null;
+            let hubName = 'hub' + capturedData.hub;
+            if (ilaInfo && ilaInfo.hubs) {
+                const hubInfo = ilaInfo.hubs.find(h => h.index === capturedData.hub);
+                if (hubInfo) {
+                    freqMhz = hubInfo.freq_mhz;
+                    hubName = hubInfo.name.trim();
+                    if (hubInfo.pods) {
+                        podInfo = hubInfo.pods.find(p => p.index === capturedData.pod);
+                    }
+                }
+            }
+            const periodNs = Math.round(1000 / freqMhz);
+            
+            let signals = [];
+            if (podInfo && podInfo.signals && podInfo.signals.length > 0) {
+                signals = podInfo.signals;
+            } else {
+                signals = [{
+                    name: `data[${dataBits-1}:0]`,
+                    bit_high: dataBits - 1,
+                    bit_low: 0,
+                    signal_type: 'vector'
+                }];
+            }
+            
+            let vcd = '';
+            vcd += '$date\n   ' + new Date().toISOString() + '\n$end\n';
+            vcd += '$version\n   SUMP3 ILA Export - ' + hubName + '\n$end\n';
+            vcd += `$timescale ${periodNs}ns $end\n`;
+            vcd += '$scope module ila $end\n';
+            
+            signals.forEach((sig, idx) => {
+                const id = String.fromCharCode(65 + idx);
+                const width = sig.bit_high - sig.bit_low + 1;
+                vcd += `$var wire ${width} ${id} ${sig.name} $end\n`;
+            });
+            
+            vcd += '$upscope $end\n';
+            vcd += '$enddefinitions $end\n';
+            vcd += '$dumpvars\n';
+            
+            function extractSignal(data, sig) {
+                const mask = ((1 << (sig.bit_high - sig.bit_low + 1)) - 1);
+                return (data >> sig.bit_low) & mask;
+            }
+            
+            const firstData = samples[0].data;
+            signals.forEach((sig, idx) => {
+                const id = String.fromCharCode(65 + idx);
+                const width = sig.bit_high - sig.bit_low + 1;
+                const val = extractSignal(firstData, sig);
+                if (width === 1) {
+                    vcd += `${val}${id}\n`;
+                } else {
+                    vcd += `b${val.toString(2).padStart(width, '0')} ${id}\n`;
+                }
+            });
+            vcd += '$end\n';
+            
+            let prevValues = signals.map(sig => extractSignal(firstData, sig));
+            let currentTime = samples[0].timestamp || 0;
+            vcd += `#${currentTime}\n`;
+            
+            for (let i = 1; i < samples.length; i++) {
+                const sample = samples[i];
+                currentTime = sample.timestamp;
+                const data = sample.data;
+                
+                let hasChange = false;
+                let changes = [];
+                
+                signals.forEach((sig, idx) => {
+                    const val = extractSignal(data, sig);
+                    if (val !== prevValues[idx]) {
+                        hasChange = true;
+                        const id = String.fromCharCode(65 + idx);
+                        const width = sig.bit_high - sig.bit_low + 1;
+                        if (width === 1) {
+                            changes.push(`${val}${id}\n`);
+                        } else {
+                            changes.push(`b${val.toString(2).padStart(width, '0')} ${id}\n`);
+                        }
+                        prevValues[idx] = val;
+                    }
+                });
+                
+                if (hasChange) {
+                    vcd += `#${currentTime}\n`;
+                    vcd += changes.join('');
+                }
+            }
+            
+            return vcd;
+        }
+        
+        function getHubName() {
+            if (!capturedData || !ilaInfo || !ilaInfo.hubs) return 'ila';
+            const hubInfo = ilaInfo.hubs.find(h => h.index === capturedData.hub);
+            return hubInfo ? hubInfo.name.trim().replace(/\s+/g, '_') : `hub${capturedData.hub}`;
+        }
+        
+        function downloadVCD() {
+            const vcd = generateVCD();
+            if (!vcd) {
+                setStatus('No data to export', 'error');
+                return;
+            }
+            
+            const hubName = getHubName();
+            const blob = new Blob([vcd], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ila_${hubName}_${Date.now()}.vcd`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            setStatus('VCD file downloaded', 'success');
+        }
+        
+        function downloadJSON() {
+            if (!capturedData) {
+                setStatus('No data to export', 'error');
+                return;
+            }
+            
+            const hubName = getHubName();
+            const json = JSON.stringify(capturedData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ila_${hubName}_${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            setStatus('JSON file downloaded', 'success');
+        }
+        
+        // Initial load
+        refreshStatus();
+    </script>
+</body>
+</html>

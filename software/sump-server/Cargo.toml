@@ -1,0 +1,36 @@
+[package]
+name = "sump-server"
+version = "0.1.0"
+edition = "2021"
+description = "SUMP3 ILA Web Server - Standalone service for the SUMP3 Integrated Logic Analyzer"
+license = "MIT"
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "query"] }
+tokio = { version = "1", default-features = false, features = ["rt", "net", "macros", "signal"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Static file serving
+tower-http = { version = "0.5", features = ["fs"] }
+tower = "0.4"
+
+# Hardware access
+libc = "0.2"
+
+# Synchronization
+parking_lot = "0.12"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+opt-level = "z"      # Optimize for size
+lto = true           # Link-time optimization
+codegen-units = 1    # Better optimization
+panic = "abort"      # No unwinding
+strip = true         # Strip symbols
