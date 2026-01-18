@@ -1,11 +1,12 @@
 //! SUMP3 ILA Web Server
 //!
 //! Standalone HTTP server for the SUMP3 Integrated Logic Analyzer.
-//! Provides a REST API and web UI for ILA control and data capture.
+//! Provides a REST API and serves the embedded Surfer WASM frontend.
 //!
 //! ## Build-time Configuration
 //! - `SUMP_PORT`: HTTP server port (default: 8082)
 //! - `SUMP_AXI_ADDR`: SUMP3 AXI base address in hex (default: 0x43C20000)
+//! - `SKIP_SURFER_BUILD`: Set to skip building the Surfer frontend
 //!
 //! ## Runtime Configuration
 //! - `PORT`: Override server port at runtime
@@ -14,12 +15,22 @@
 mod devmem;
 mod ila;
 
-use axum::Router;
+use axum::{
+    body::Body,
+    http::{header, StatusCode, Uri},
+    response::{IntoResponse, Response},
+    Router,
+};
+use rust_embed::Embed;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::ServeDir;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+/// Embedded Surfer WASM frontend files (built by trunk during cargo build)
+#[derive(Embed)]
+#[folder = "../../surfer/surfer/dist/"]
+struct Assets;
 
 /// Default port (set at compile time via build.rs)
 const DEFAULT_PORT: u16 = {
@@ -45,8 +56,38 @@ const DEFAULT_AXI_ADDR: &str = match option_env!("SUMP_DEFAULT_AXI_ADDR") {
     None => "0x43C20000",
 };
 
-/// Static files directory
-const STATIC_DIR: &str = "/www/ila";
+/// Serve embedded static files
+async fn serve_static(uri: Uri) -> impl IntoResponse {
+    let path = uri.path().trim_start_matches('/');
+    
+    // Default to index.html for root or missing files (SPA routing)
+    let path = if path.is_empty() { "index.html" } else { path };
+    
+    match Assets::get(path) {
+        Some(content) => {
+            let mime = mime_guess::from_path(path).first_or_octet_stream();
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime.as_ref())
+                .body(Body::from(content.data.into_owned()))
+                .unwrap()
+        }
+        None => {
+            // For SPA routing, serve index.html for unknown paths
+            match Assets::get("index.html") {
+                Some(content) => Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "text/html")
+                    .body(Body::from(content.data.into_owned()))
+                    .unwrap(),
+                None => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::from("Not Found"))
+                    .unwrap(),
+            }
+        }
+    }
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -86,7 +127,7 @@ async fn main() {
     };
 
     // CORS configuration for development (allows any origin)
-    // In production, the frontend is served from the same origin so CORS isn't needed
+    // Useful when running surfer locally against a remote sump-server
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -95,8 +136,8 @@ async fn main() {
     // Build the application router
     let app = Router::new()
         .nest("/api/ila", ila::ila_router(ila_state))
-        // Static files (fallback to serve index.html, CSS, JS, etc.)
-        .fallback_service(ServeDir::new(STATIC_DIR))
+        // Serve embedded static files as fallback
+        .fallback(serve_static)
         .layer(cors);
 
     // Parse port from environment or use compile-time default
